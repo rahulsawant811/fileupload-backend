@@ -1,0 +1,78 @@
+// FRONTEND (angular2)
+// product-form.compontent.html
+<input type="file" (change)="fileChangeEvent($event)" placeholder="Upload file..." />
+<button type="button" (click)="upload()">Upload</button>
+
+// product-form.compontent.ts
+import { Component, OnInit } from '@angular/core';
+import { Http } from '@angular/http';
+
+@Component({
+  selector: 'product-form',
+  templateUrl: './product-form.component.html',
+  styleUrls: ['./product-form.component.css']
+})
+
+export class ProductFormComponent implements OnInit {
+  filesToUpload: Array<File> = [];
+
+  constructor(private http: Http) {}
+
+  ngOnInit() {}
+
+  upload() {
+    const formData: any = new FormData();
+    const files: Array<File> = this.filesToUpload;
+
+    formData.append("uploads[]", files[0], files[0]['name']);
+
+    this.http.post('http://localhost:3001/upload', formData)
+      .map(files => files.json())
+      .subscribe(files => console.log('files', files))
+  }
+
+  fileChangeEvent(fileInput: any) {
+    this.filesToUpload = <Array<File>>fileInput.target.files;
+    this.product.photo = fileInput.target.files[0]['name'];
+  }
+
+// BACKEND (anodejs - express)
+// npm install express multer
+
+var express = require('express');
+var multer = require('multer');
+var path = require('path');
+var app = express();
+var port = 3001;
+
+// le dice a express que el directorio 'uploads', es estatico.
+app.use(express.static(path.join(__dirname, 'uploads')));
+
+// para CORN
+app.use(function (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
+
+var storage = multer.diskStorage({
+  // destino del fichero
+  destination: function (req, file, cb) {
+    cb(null, './uploads/')
+  },
+  // renombrar fichero
+  filename: function (req, file, cb) {
+    cb(null, file.originalname);
+  }
+});
+
+var upload = multer({ storage: storage });
+
+app.post("/upload", upload.array("uploads[]", 12), function (req, res) {
+  console.log('files', req.files);
+  res.send(req.files);
+});
+
+var server = app.listen(port, function () {
+  console.log("Listening on port %s...", port);
+});
